@@ -23,7 +23,10 @@ npm --prefix contract/harness install
 npm --prefix contract/harness run conformance ruby
 ```
 
-CI runs all of it on Ruby 3.2, 3.3 and 3.4.
+CI lints on one Ruby and runs the tests and the conformance suite on 3.2, 3.3
+and 3.4. rubocop's own dependencies need a newer Ruby than this gem does, so it
+lives in a separate bundler group: a development tool does not get to narrow
+which Rubies the library supports.
 
 ## Four rules worth knowing before you change behavior
 

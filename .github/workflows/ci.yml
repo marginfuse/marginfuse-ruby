@@ -13,6 +13,19 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  lint:
+    # One version only: rubocop's dependencies require a newer Ruby than this
+    # gem does, and the linter does not get to narrow what the library supports.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+          bundler-cache: true
+      - run: bundle exec rubocop
+
   test:
     name: ruby ${{ matrix.ruby }}
     runs-on: ubuntu-latest
@@ -21,6 +34,8 @@ jobs:
       fail-fast: false
       matrix:
         ruby: ["3.2", "3.3", "3.4"]
+    env:
+      BUNDLE_WITHOUT: lint
     steps:
       - uses: actions/checkout@v5
         with:
@@ -30,9 +45,6 @@ jobs:
         with:
           ruby-version: ${{ matrix.ruby }}
           bundler-cache: true
-
-      - name: Lint
-        run: bundle exec rubocop
 
       - name: Tests, plus the shared gateway vectors
         run: bundle exec rake test
