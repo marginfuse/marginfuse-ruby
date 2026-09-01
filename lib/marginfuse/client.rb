@@ -3,6 +3,10 @@
 require "json"
 require "net/http"
 require "securerandom"
+# Time#iso8601 lives here. Some Rubies load it transitively and some do not, so
+# a library that assumes it is present throws into the caller on the ones that
+# do not, which is the one thing this SDK promises never to do.
+require "time"
 require "uri"
 
 module MarginFuse
