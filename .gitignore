@@ -1,0 +1,4 @@
+pkg/
+*.gem
+.bundle/
+contract/harness/node_modules/

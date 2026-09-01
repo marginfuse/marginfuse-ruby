@@ -1,0 +1,20 @@
+AllCops:
+  TargetRubyVersion: 3.1
+  NewCops: enable
+  Exclude:
+    - contract/**/*
+    - vendor/**/*
+
+Metrics:
+  Enabled: false
+
+Style/Documentation:
+  Enabled: false
+
+Layout/LineLength:
+  Max: 100
+
+# Double quotes throughout, matching the other MarginFuse SDKs. Consistency
+# across seven languages is worth more than the convention of any one of them.
+Style/StringLiterals:
+  EnforcedStyle: double_quotes

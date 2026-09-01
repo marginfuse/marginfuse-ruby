@@ -1,0 +1,55 @@
+# Publishes to RubyGems when a v* tag is pushed.
+#
+# No RubyGems API key exists anywhere in this repository or its secrets.
+# Publishing authenticates through OIDC trusted publishing, which RubyGems
+# verifies against this exact workflow in this exact repository.
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: release
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: The tag must match the version being published
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          GEM="$(ruby -Ilib -e 'require "marginfuse/version"; print MarginFuse::VERSION')"
+          if [ "$TAG" != "$GEM" ]; then
+            echo "tag v$TAG does not match MarginFuse::VERSION $GEM"
+            exit 1
+          fi
+
+      - run: bundle exec rubocop
+      - run: bundle exec rake test
+
+      - name: Conformance must pass before anything is published
+        run: |
+          gem build marginfuse.gemspec
+          gem install ./marginfuse-*.gem --no-document
+          npm --prefix contract/harness install
+          MF_RUNNER=../../exe/conformance_runner.rb \
+            npm --prefix contract/harness run conformance ruby
+
+      - uses: rubygems/release-gem@v1

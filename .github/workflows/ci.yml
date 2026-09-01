@@ -1,0 +1,61 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  test:
+    name: ruby ${{ matrix.ruby }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby: ["3.1", "3.2", "3.3", "3.4"]
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+          bundler-cache: true
+
+      - name: Lint
+        run: bundle exec rubocop
+
+      - name: Tests, plus the shared gateway vectors
+        run: bundle exec rake test
+
+      - name: The gem must declare no runtime dependencies
+        # bigdecimal stopped being a default gem in Ruby 3.4; a dependency can
+        # appear here without anyone noticing it did.
+        run: |
+          ruby -e '
+            deps = Gem::Specification.load("marginfuse.gemspec")
+                     .dependencies.select { |d| d.type == :runtime }.map(&:name)
+            abort("runtime dependencies appeared: #{deps.inspect}") unless deps.empty?
+            puts "no runtime dependencies"
+          '
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Conformance, against the built gem
+        run: |
+          gem build marginfuse.gemspec
+          gem install ./marginfuse-*.gem --no-document
+          npm --prefix contract/harness install
+          MF_RUNNER=../../exe/conformance_runner.rb \
+            npm --prefix contract/harness run conformance ruby
