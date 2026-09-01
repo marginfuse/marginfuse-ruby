@@ -25,8 +25,9 @@ Gem::Specification.new do |spec|
     "rubygems_mfa_required" => "true"
   }
 
-  # Ruby 3.1 is the oldest release still receiving security fixes.
-  spec.required_ruby_version = ">= 3.1.0"
+  # Ruby 3.2 is the oldest release still receiving security fixes, and the
+  # oldest the development toolchain installs on.
+  spec.required_ruby_version = ">= 3.2.0"
 
   spec.files = Dir["lib/**/*.rb", "LICENSE", "README.md", "CHANGELOG.md"]
   spec.require_paths = ["lib"]

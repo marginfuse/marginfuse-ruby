@@ -13,7 +13,7 @@ per customer, and stop loss-making requests before they run.
 - **Never breaks your app.** It does not raise into your code, and it does not
   block your request on MarginFuse being up. If MarginFuse is unreachable, your
   requests proceed unchanged.
-- **Zero dependencies.** Standard library only, Ruby 3.1+.
+- **Zero dependencies.** Standard library only, Ruby 3.2+.
 
 > **Server side only.** This SDK carries a secret API key. Never ship it in a
 > desktop or mobile application, or anything else a user can read.

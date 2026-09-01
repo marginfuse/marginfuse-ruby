@@ -23,7 +23,7 @@ npm --prefix contract/harness install
 npm --prefix contract/harness run conformance ruby
 ```
 
-CI runs all of it on Ruby 3.1, 3.2, 3.3 and 3.4.
+CI runs all of it on Ruby 3.2, 3.3 and 3.4.
 
 ## Four rules worth knowing before you change behavior
 

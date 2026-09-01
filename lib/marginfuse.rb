@@ -12,7 +12,7 @@ module MarginFuse
   # Convenience for the common case.
   #
   #   mf = MarginFuse.new(api_key: ENV.fetch("MARGINFUSE_KEY"))
-  def self.new(**options)
-    Client.new(**options)
+  def self.new(**)
+    Client.new(**)
   end
 end

@@ -6,7 +6,7 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [0.1.0]
 
-First release. Ruby 3.1+, zero dependencies, standard library only.
+First release. Ruby 3.2+, zero dependencies, standard library only.
 
 ### Added
 
@@ -33,6 +33,9 @@ First release. Ruby 3.1+, zero dependencies, standard library only.
 - **`guard` yields rather than returning a decision to act on.** Forgetting the
   check once would let a blocked request reach the provider.
 - **`decide` never raises.** A failed decision is an allow with `degraded?` set.
+- **Ruby 3.2, not 3.1.** The development toolchain does not install on 3.1, so
+  the claim could not be verified, and 3.1 reached end of life in March 2025.
+  Claiming a version CI cannot exercise is how an SDK ends up broken on it.
 - Verified against
   [marginfuse/sdk-contract](https://github.com/marginfuse/sdk-contract): 16
   behavioral scenarios and 13 gateway vectors, the same ones the Node, Python,
