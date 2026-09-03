@@ -63,9 +63,10 @@ module MarginFuse
     # outage.
     #
     # @return [Decision]
-    def decide(customer_id:, provider:, model:, feature: nil, expected_usage: nil)
+    def decide(customer_id:, provider:, model:, plan: nil, feature: nil, expected_usage: nil)
       body = {
         "customerId" => customer_id,
+        "plan" => plan,
         "feature" => feature,
         "provider" => provider,
         "model" => model,
@@ -106,12 +107,14 @@ module MarginFuse
     # Call {#flush} before the process exits, or the last events go with it.
     #
     # @return [void]
-    def track(customer_id:, provider:, model:, usage: nil, feature: nil, requested_model: nil,
-              cost_usd: nil, event_id: nil, occurred_at: nil, outcome: :success,
-              decision_id: nil, retry_of_event_id: nil, corrects_event_id: nil)
+    def track(customer_id:, provider:, model:, usage: nil, plan: nil, feature: nil,
+              requested_model: nil, cost_usd: nil, event_id: nil, occurred_at: nil,
+              outcome: :success, decision_id: nil, retry_of_event_id: nil,
+              corrects_event_id: nil)
       event = {
         "eventId" => event_id || "evt_#{SecureRandom.uuid}",
         "customerId" => customer_id,
+        "plan" => plan,
         "feature" => feature,
         "provider" => provider,
         "model" => model,
@@ -126,6 +129,58 @@ module MarginFuse
       }.compact
 
       background { send_event(event) }
+    end
+
+    # Tells MarginFuse who a customer is and what plan they are on.
+    #
+    # +plan+ is the key of a plan you declared in MarginFuse Settings, not a
+    # Stripe price id. MarginFuse derives that customer's revenue from the
+    # plan's price for every cycle, which is what makes margin per customer and
+    # margin policies work with no revenue source connected. Those figures are
+    # labeled as a declared price wherever they appear, because nobody
+    # confirmed collection.
+    #
+    # Safe to call on every sign-in: sending the plan the customer is already
+    # on changes nothing. Sending a different one ends the current cycle at
+    # that moment and prorates what accrued. +period_start+ backdates the cycle;
+    # +clear_plan+ takes the customer off plans entirely.
+    #
+    # Unlike {#track}, this waits and reports failure. track has a safe default
+    # - retry later - and "I could not record what this customer pays" has
+    # none, because a wrong plan is a wrong margin. It still never raises:
+    # check +result.ok?+, and +on_error+ is called too.
+    #
+    # @return [IdentifyResult]
+    def identify(customer_id:, plan: nil, clear_plan: false, period_start: nil,
+                 name: nil, email: nil, metadata: nil)
+      body = {
+        "customerId" => customer_id,
+        "plan" => plan,
+        "clearPlan" => (true if clear_plan),
+        "periodStart" => period_start&.utc&.iso8601(6),
+        "name" => name,
+        "email" => email,
+        "metadata" => metadata
+      }.compact
+
+      response = post("/v1/identify", body, 5.0)
+      unless (200..299).cover?(response.code.to_i)
+        error = RuntimeError.new("identify: HTTP #{response.code}")
+        report(error, "identify")
+        return IdentifyResult.new(ok: false, error: error.message)
+      end
+
+      parsed = JSON.parse(response.body)
+      IdentifyResult.new(
+        ok: true,
+        customer_id: parsed["customerId"],
+        plan: parsed["plan"],
+        period_start: parsed["periodStart"],
+        period_end: parsed["periodEnd"]
+      )
+    rescue StandardError => e
+      report(e, "identify")
+      IdentifyResult.new(ok: false, error: e.message)
     end
 
     # {#track} for jobs and scripts that must not exit early.
@@ -164,9 +219,9 @@ module MarginFuse
     # provider may still have charged for it.
     #
     # @return [GuardOutcome]
-    def guard(customer_id:, provider:, model:, feature: nil, expected_usage: nil)
+    def guard(customer_id:, provider:, model:, plan: nil, feature: nil, expected_usage: nil)
       decision = decide(customer_id: customer_id, provider: provider, model: model,
-                        feature: feature, expected_usage: expected_usage)
+                        plan: plan, feature: feature, expected_usage: expected_usage)
 
       # Enforcement depends on the ACTION alone. A missing id costs an
       # acknowledgment; it must never turn a block into a provider call.
@@ -184,7 +239,7 @@ module MarginFuse
       begin
         call = yield(decision)
       rescue Exception => e # rubocop:disable Lint/RescueException
-        track(customer_id: customer_id, feature: feature, provider: provider,
+        track(customer_id: customer_id, plan: plan, feature: feature, provider: provider,
               model: model_used, requested_model: model, usage: {},
               outcome: :provider_error, decision_id: decision.id)
         acknowledge(decision.id, :proceeded_as_requested) if decision.id
@@ -192,7 +247,7 @@ module MarginFuse
       end
 
       call ||= {}
-      track(customer_id: customer_id, feature: feature, provider: provider,
+      track(customer_id: customer_id, plan: plan, feature: feature, provider: provider,
             model: model_used, requested_model: model, usage: call[:usage],
             cost_usd: call[:cost_usd], outcome: call[:outcome] || :success,
             decision_id: decision.id)

@@ -29,6 +29,23 @@ module MarginFuse
     end
   end
 
+  # What {Client#identify} recorded, or why it could not.
+  #
+  # +ok+ is the only field to branch on. When it is false the call changed
+  # nothing and +error+ says what happened; the SDK still did not raise.
+  #
+  # Unlike {Client#track}, identify reports its failures. track has a safe
+  # default - retry later - and "I could not record what this customer pays"
+  # has none: a wrong plan is a wrong margin.
+  IdentifyResult = Struct.new(
+    :ok, :customer_id, :plan, :period_start, :period_end, :error,
+    keyword_init: true
+  ) do
+    def ok?
+      !!ok
+    end
+  end
+
   # The result of the whole guard loop. +kind+ is :completed, :blocked or
   # :topup_required. +result+ is your block's own return value.
   GuardOutcome = Struct.new(:kind, :decision, :result, keyword_init: true) do

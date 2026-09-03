@@ -12,6 +12,7 @@
 
 $LOAD_PATH.unshift(File.expand_path("../lib", __dir__))
 require "json"
+require "time"
 require "marginfuse"
 
 # The scenarios speak the wire's camelCase; this SDK speaks snake_case.
@@ -26,6 +27,12 @@ USAGE_KEYS = {
 
 PARAM_KEYS = {
   "customerId" => :customer_id,
+  "plan" => :plan,
+  "clearPlan" => :clear_plan,
+  "periodStart" => :period_start,
+  "name" => :name,
+  "email" => :email,
+  "metadata" => :metadata,
   "eventId" => :event_id,
   "requestedModel" => :requested_model,
   "costUsd" => :cost_usd,
@@ -92,6 +99,19 @@ begin
     mf.track(**params)
   when "acknowledge"
     mf.acknowledge(params[:decision_id], scenario["params"]["acknowledgment"].to_sym)
+  when "identify"
+    # The one call that reports failure instead of failing open: a wrong plan
+    # is a wrong margin, so the application has to be able to see it.
+    params[:period_start] = Time.iso8601(params[:period_start]) if params[:period_start]
+    result = mf.identify(**params)
+    report["result"] = {
+      "ok" => result.ok?,
+      "customerId" => result.customer_id,
+      "plan" => result.plan,
+      "periodStart" => result.period_start,
+      "periodEnd" => result.period_end,
+      "error" => result.error
+    }
   when "guard"
     spec = scenario["provider"] || {}
     outcome = mf.guard(**params) do |decision|
