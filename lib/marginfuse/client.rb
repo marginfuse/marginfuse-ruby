@@ -208,7 +208,8 @@ module MarginFuse
     #
     # Yields the decision to the block, which must return a hash with +:usage+
     # and optionally +:result+, +:cost_usd+ and +:outcome+. Use
-    # +decision.model+: a downgrade verdict changes it.
+    # +decision.model+ and +decision.provider+: a downgrade verdict changes
+    # them, and it can send you to another vendor.
     #
     # It yields rather than returning a decision for you to act on, because
     # enforcement must not depend on the caller remembering to check anything.
@@ -234,27 +235,34 @@ module MarginFuse
         return GuardOutcome.new(kind: :topup_required, decision: decision)
       end
 
+      # A downgrade can cross vendors, so the vendor that ran the call comes
+      # from the decision exactly as the model does. Reporting the caller's
+      # would price the call from the wrong catalog and credit the saving to the
+      # wrong vendor. The decision defaults both to what was asked for, so
+      # anything but a downgrade reports what it always did.
       model_used = decision.action == :downgrade ? decision.model : model
+      provider_used = decision.action == :downgrade ? decision.provider : provider
+      # A downgrade whose provider call then fails is still a downgrade: the
+      # cheaper model is the one that ran, so both paths acknowledge the same.
+      acknowledgment =
+        decision.action == :downgrade ? :used_downgrade_model : :proceeded_as_requested
 
       begin
         call = yield(decision)
       rescue Exception => e # rubocop:disable Lint/RescueException
-        track(customer_id: customer_id, plan: plan, feature: feature, provider: provider,
+        track(customer_id: customer_id, plan: plan, feature: feature, provider: provider_used,
               model: model_used, requested_model: model, usage: {},
               outcome: :provider_error, decision_id: decision.id)
-        acknowledge(decision.id, :proceeded_as_requested) if decision.id
+        acknowledge(decision.id, acknowledgment) if decision.id
         raise e
       end
 
       call ||= {}
-      track(customer_id: customer_id, plan: plan, feature: feature, provider: provider,
+      track(customer_id: customer_id, plan: plan, feature: feature, provider: provider_used,
             model: model_used, requested_model: model, usage: call[:usage],
             cost_usd: call[:cost_usd], outcome: call[:outcome] || :success,
             decision_id: decision.id)
-      if decision.id
-        acknowledge(decision.id,
-                    decision.action == :downgrade ? :used_downgrade_model : :proceeded_as_requested)
-      end
+      acknowledge(decision.id, acknowledgment) if decision.id
 
       GuardOutcome.new(kind: :completed, decision: decision, result: call[:result])
     end

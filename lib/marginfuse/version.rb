@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module MarginFuse
-  VERSION = "0.2.0"
+  VERSION = "0.3.0"
 
   # The version of the shared SDK contract this build was verified against.
   #
@@ -12,5 +12,5 @@ module MarginFuse
   # same vectors.
   #
   # See github.com/marginfuse/sdk-contract
-  CONTRACT_VERSION = 1
+  CONTRACT_VERSION = 2
 end
