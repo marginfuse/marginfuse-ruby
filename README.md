@@ -98,9 +98,11 @@ must never become your outage. Transport failures go to `on_error`.
 
 ## Tell MarginFuse what a customer pays
 
-Margin needs a revenue side. With Stripe connected it comes from there. Without
-one, you declare your plans in MarginFuse and say which plan each customer is
-on:
+Margin needs a revenue side: Stripe for web billing, RevenueCat for App Store
+and Google Play proceeds, or declared plan prices. RevenueCat joins by App User
+ID; use that same ID in your events. Without a billing connection, declare your
+plans in MarginFuse and say which plan each customer is on. Declared revenue
+is unverified and does not confirm payment:
 
 ```ruby
 result = mf.identify(
@@ -182,7 +184,7 @@ MARGINFUSE = MarginFuse.new(
 Everything, and nothing else:
 
 ```
-event_id  customer_id  feature  provider  model  requested_model
+event_id  customer_id  feature  provider  model  requested_model  plan
 usage(input_tokens, output_tokens, cached_input_tokens,
       cache_creation_tokens, images, audio_seconds)
 cost_usd  occurred_at  outcome  decision_id  retry_of_event_id  corrects_event_id
