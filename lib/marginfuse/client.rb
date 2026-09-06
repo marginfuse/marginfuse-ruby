@@ -81,6 +81,10 @@ module MarginFuse
       end
 
       parsed = JSON.parse(response.body)
+      unless valid_wire_decision?(parsed)
+        report(RuntimeError.new("decide: invalid response payload"), "decide")
+        return fail_open(provider, model, "invalid response")
+      end
       Decision.new(
         id: parsed["id"],
         action: Decision.action_from_wire(parsed["action"]),
@@ -281,6 +285,23 @@ module MarginFuse
     end
 
     private
+
+    def valid_wire_decision?(value)
+      return false unless value.is_a?(Hash)
+      return false unless %w[allow block topup_required downgrade].include?(value["action"])
+
+      %w[id model provider topupContext degradedReason].each do |key|
+        return false if value.key?(key) && !value[key].is_a?(String)
+      end
+      if value.key?("degraded") && value["degraded"] != true && value["degraded"] != false
+        return false
+      end
+
+      %w[model provider].each do |key|
+        return false if value.key?(key) && value[key].strip.empty?
+      end
+      value["action"] != "downgrade" || value.key?("model")
+    end
 
     def fail_open(provider, model, reason)
       Decision.new(id: nil, action: :allow, model: model, provider: provider,

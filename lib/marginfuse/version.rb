@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module MarginFuse
-  VERSION = "0.3.0"
+  VERSION = "0.3.1"
 
   # The version of the shared SDK contract this build was verified against.
   #

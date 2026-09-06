@@ -26,7 +26,9 @@ bundle add marginfuse
 
 ## Track an AI call
 
-Monitoring. One call after each AI request, metadata only.
+Monitoring. One call after each AI request, metadata only. OpenAI prompt tokens
+include cached reads: subtract them from input and report them separately to
+avoid pricing cached tokens at the full input rate.
 
 ```ruby
 require "marginfuse"
@@ -34,6 +36,7 @@ require "marginfuse"
 mf = MarginFuse.new(api_key: ENV.fetch("MARGINFUSE_KEY"))
 
 response = client.chat(model: "gpt-4.1", messages: messages)
+cached = response.usage.prompt_tokens_details&.cached_tokens || 0
 
 mf.track(
   customer_id: "cus_8x2m91",   # your Stripe customer id, or your own
@@ -41,7 +44,8 @@ mf.track(
   provider: "openai",
   model: "gpt-4.1",
   usage: {
-    input_tokens: response.usage.prompt_tokens,
+    input_tokens: [0, response.usage.prompt_tokens - cached].max,
+    cached_input_tokens: cached,
     output_tokens: response.usage.completion_tokens
   }
 )
@@ -53,7 +57,9 @@ or the last events go with it.
 
 ## Guard a call
 
-Protection. Ask before the call runs, and act on the answer.
+Protection. Ask before the call runs, and act on the answer. This example assumes
+same-provider downgrades; cross-provider policies require dispatching to the
+client named by the decision provider.
 
 ```ruby
 outcome = mf.guard(
@@ -64,10 +70,12 @@ outcome = mf.guard(
 ) do |decision|
   # decision.model is the one to call: a downgrade verdict changes it.
   response = client.chat(model: decision.model, messages: messages)
+  cached = response.usage.prompt_tokens_details&.cached_tokens || 0
   {
     result: response,
     usage: {
-      input_tokens: response.usage.prompt_tokens,
+      input_tokens: [0, response.usage.prompt_tokens - cached].max,
+      cached_input_tokens: cached,
       output_tokens: response.usage.completion_tokens
     }
   }

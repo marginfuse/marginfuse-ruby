@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.1
+
+- Validate successful decision responses before using routing fields. Malformed
+  responses fail open to the original provider and model, mark the decision
+  degraded, and invoke the error hook. Valid blocks without an id still block.
+- Correct OpenAI examples to separate cached input tokens from fresh input,
+  and clarify provider dispatch for cross-provider downgrade policies.
+
+
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project
 follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
